@@ -3,6 +3,7 @@ import sqlite3
 from datetime import datetime, timedelta
 import platform
 from AppKit import NSWorkspace
+import subprocess
 
 def get_active_window():
     return NSWorkspace.sharedWorkspace().activeApplication()['NSApplicationName']
@@ -43,12 +44,22 @@ def generate_daily_summary():
     print(summary)
     conn.close()
 
+def is_charging():
+    result = subprocess.Popen(['pmset', '-g', 'batt'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output, error = result.communicate()
+    return "AC Power" in output.decode('utf-8')
+
 def main():
     last_window = None
     start_time = None
     last_summary_time = datetime.now()
 
     while True:
+        if not is_charging():
+            print("Not connected to a power source. Pausing tracking.")
+            time.sleep(60)  # Wait for 1 minute before checking again
+            continue
+
         current_window = get_active_window()
         if current_window and current_window != last_window:
             end_time = datetime.now()
